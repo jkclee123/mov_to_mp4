@@ -1,0 +1,10 @@
+[package]
+name = "mov_to_mp4"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+colored = "2.0"
+which = "5.0"
+indicatif = "0.17.7"
+thiserror = "1.0"
