@@ -122,18 +122,29 @@ fn get_all_mov() -> Result<Vec<String>, AppError> {
     Ok(mov_filenames)
 }
 
+/// Converts a MOV file to MP4 format using FFmpeg
+/// 
+/// This function handles the conversion process with optimized settings for 
+/// fast conversion while maintaining good quality. It uses hardware acceleration
+/// when available on the platform.
 fn convert_mov_to_mp4(mov_filename: &str, ffmpeg_path: &str) -> Result<(), AppError> {    
+    // Create mp4 directory if it doesn't exist
     let mp4_dir = Path::new("mp4");
     if !mp4_dir.exists() {
         fs::create_dir(mp4_dir)?;
     }
 
+    // Prepare output file path with same name but mp4 extension
     let file_name = Path::new(mov_filename)
         .file_name()
         .ok_or_else(|| AppError::PathError("Invalid filename".to_string()))?;
     let mp4_file = mp4_dir.join(file_name).with_extension("mp4");
     
-    // Detect OS for hardware acceleration
+    // ==========================================
+    // FFmpeg conversion argument configuration
+    // ==========================================
+    
+    // 1. Configure hardware acceleration based on OS
     let hw_accel_args: Vec<&str> = if cfg!(target_os = "macos") {
         vec!["-hwaccel", "videotoolbox"]
     } else if cfg!(target_os = "windows") {
@@ -144,36 +155,50 @@ fn convert_mov_to_mp4(mov_filename: &str, ffmpeg_path: &str) -> Result<(), AppEr
         vec![]
     };
 
-    // Build args dynamically
+    // 2. Initialize the arguments list
     let mut args = Vec::new();
     
-    // Add hardware acceleration if available
+    // 3. Add hardware acceleration (if available for platform)
     args.extend_from_slice(&hw_accel_args);
     
-    // Input file
+    // 4. Specify input file
     args.extend_from_slice(&["-i", mov_filename]);
     
-    // Video codec with faster preset and higher CRF (lower quality but faster encoding)
+    // 5. Configure video codec settings
+    //    - libx264: High quality H.264 encoder
+    //    - faster preset: Good balance between speed and quality
+    //    - CRF 23: Default quality setting (lower = better quality)
     args.extend_from_slice(&[
         "-c:v", "libx264", 
-        "-preset", "faster",   // Use faster preset (options: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
-        "-crf", "23",          // Constant Rate Factor (0-51, lower is better quality, 23 is default)
+        "-preset", "faster",
+        "-crf", "23",
     ]);
     
-    // Audio codec with higher bitrate
-    args.extend_from_slice(&["-c:a", "aac", "-b:a", "128k"]);
+    // 6. Configure audio codec settings
+    //    - AAC: Industry standard audio codec
+    //    - 128k bitrate: Good quality for most audio sources
+    args.extend_from_slice(&[
+        "-c:a", "aac", 
+        "-b:a", "128k",
+    ]);
     
-    // Use multiple threads
-    args.extend_from_slice(&["-threads", "0"]);  // 0 means auto-select based on available CPU cores
+    // 7. Optimize for performance with multithreading
+    //    - 0 threads means auto-detect available CPU cores
+    args.extend_from_slice(&["-threads", "0"]);
     
-    // Output file
+    // 8. Specify output file
     args.push(mp4_file.to_str()
         .ok_or_else(|| AppError::PathError("Invalid MP4 path".to_string()))?);
+    
+    // ==========================================
+    // Execute FFmpeg conversion command
+    // ==========================================
     
     let output = Command::new(ffmpeg_path)
         .args(&args)
         .output()?;
     
+    // Check if conversion was successful
     if output.status.success() {
         Ok(())
     } else {
