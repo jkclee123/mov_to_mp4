@@ -133,14 +133,45 @@ fn convert_mov_to_mp4(mov_filename: &str, ffmpeg_path: &str) -> Result<(), AppEr
         .ok_or_else(|| AppError::PathError("Invalid filename".to_string()))?;
     let mp4_file = mp4_dir.join(file_name).with_extension("mp4");
     
+    // Detect OS for hardware acceleration
+    let hw_accel_args: Vec<&str> = if cfg!(target_os = "macos") {
+        vec!["-hwaccel", "videotoolbox"]
+    } else if cfg!(target_os = "windows") {
+        vec!["-hwaccel", "dxva2"]
+    } else if cfg!(target_os = "linux") {
+        vec!["-hwaccel", "vaapi", "-vaapi_device", "/dev/dri/renderD128"]
+    } else {
+        vec![]
+    };
+
+    // Build args dynamically
+    let mut args = Vec::new();
+    
+    // Add hardware acceleration if available
+    args.extend_from_slice(&hw_accel_args);
+    
+    // Input file
+    args.extend_from_slice(&["-i", mov_filename]);
+    
+    // Video codec with faster preset and higher CRF (lower quality but faster encoding)
+    args.extend_from_slice(&[
+        "-c:v", "libx264", 
+        "-preset", "faster",   // Use faster preset (options: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
+        "-crf", "23",          // Constant Rate Factor (0-51, lower is better quality, 23 is default)
+    ]);
+    
+    // Audio codec with higher bitrate
+    args.extend_from_slice(&["-c:a", "aac", "-b:a", "128k"]);
+    
+    // Use multiple threads
+    args.extend_from_slice(&["-threads", "0"]);  // 0 means auto-select based on available CPU cores
+    
+    // Output file
+    args.push(mp4_file.to_str()
+        .ok_or_else(|| AppError::PathError("Invalid MP4 path".to_string()))?);
+    
     let output = Command::new(ffmpeg_path)
-        .args(&[
-            "-i", mov_filename,
-            "-c:v", "libx264",
-            "-c:a", "aac",
-            mp4_file.to_str()
-                .ok_or_else(|| AppError::PathError("Invalid MP4 path".to_string()))?
-        ])
+        .args(&args)
         .output()?;
     
     if output.status.success() {
