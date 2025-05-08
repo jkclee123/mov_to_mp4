@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use colored::*;
-use std::env;
 use std::path::PathBuf;
 use indicatif::{ProgressBar, ProgressStyle};
 use thiserror::Error;
@@ -10,6 +9,7 @@ use std::thread;
 use std::time::Duration;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::io::{self, Write};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -22,8 +22,12 @@ pub enum AppError {
 }
 
 fn main() -> Result<(), AppError> {
-    let args: Vec<String> = env::args().collect();
-    let delete_after = args.iter().any(|arg| arg == "--delete" || arg == "-d");
+    print!("Do you want to delete MOV files after conversion? (yes/no): ");
+    io::stdout().flush()?;
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let delete_after = input.trim().to_lowercase() == "yes" || input.trim().to_lowercase() == "y";
     
     let ffmpeg_path = get_ffmpeg_path()?;
     let mov_filenames = get_all_mov()?;
