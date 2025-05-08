@@ -32,14 +32,9 @@ A simple command-line tool to convert MOV files to MP4 format using FFmpeg.
 2. Place your MOV files in the `mov` directory
 3. Run the program:
    ```bash
-   # Basic usage
    ./mov_to_mp4
-
-   # Delete original MOV files after conversion
-   ./mov_to_mp4 --delete
-   # or
-   ./mov_to_mp4 -d
    ```
+4. When prompted, type `yes` or `y` if you want to delete the original MOV files after conversion, or any other input to keep them.
 
 The converted MP4 files will be saved in a `mp4` directory.
 
@@ -52,3 +47,18 @@ The converted MP4 files will be saved in a `mp4` directory.
    cargo build --release
    ```
 4. The executable will be in `target/release/mov_to_mp4`
+
+## Building for Windows
+
+To build for Windows from macOS or Linux:
+
+1. Add the Windows target:
+   ```bash
+   rustup target add x86_64-pc-windows-gnu
+   ```
+2. Install the MinGW toolchain (macOS: `brew install mingw-w64`, Linux: `sudo apt install mingw-w64`)
+3. Build the Windows executable:
+   ```bash
+   cargo build --release --target x86_64-pc-windows-gnu
+   ```
+4. The Windows executable will be in `target/x86_64-pc-windows-gnu/release/mov_to_mp4.exe`
